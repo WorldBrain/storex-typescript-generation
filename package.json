@@ -1,0 +1,40 @@
+{
+  "name": "@worldbrain/storex-typescript-generation",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Storex TypeScript interface generation",
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "scripts": {
+    "prepare": "tsc",
+    "prepare:watch": "npm run prepare -- -w",
+    "test": "mocha --require ts-node/register \"ts/**/*.test.ts\"",
+    "test:watch": "mocha -r source-map-support/register -r ts-node/register \"ts/**/*.test.ts\" --watch --watch-extensions ts"
+  },
+  "keywords": [
+    "storage",
+    "graph",
+    "database",
+    "typescript"
+  ],
+  "author": "Vincent den Boer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WorldBrain/storex-typescript-generation.git"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/mocha": "^2.2.44",
+    "@types/node": "^10.12.11",
+    "@worldbrain/storex": "^0.3.5",
+    "@worldbrain/storex-pattern-modules": "^0.3.0",
+    "expect": "^23.5.0",
+    "mocha": "^4.0.1",
+    "strip-indent": "^3.0.0",
+    "ts-node": "^7.0.1",
+    "typescript": "^3.0.1"
+  },
+  "peerDependencies": {
+    "@worldbrain/storex-pattern-modules": "^0.3.0"
+  }
+}
