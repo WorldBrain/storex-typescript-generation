@@ -1,4 +1,4 @@
-import { StorageRegistry, CollectionDefinition, CollectionField } from "@worldbrain/storex";
+import { StorageRegistry, CollectionDefinition, CollectionField, Relationship, isChildOfRelationship } from "@worldbrain/storex";
 import { upperFirst } from "./utils";
 
 interface CommonTypescriptGenerationOptions {
@@ -6,7 +6,7 @@ interface CommonTypescriptGenerationOptions {
     fieldTypeMap? : {[storexFieldType : string] : string}
 }
 interface CollectionTypescriptGenerationOptions extends CommonTypescriptGenerationOptions {
-    collectionName : string
+    collectionDefinition : CollectionDefinition
 }
 interface FieldTypescriptGenerationOptions extends CollectionTypescriptGenerationOptions {
     fieldName : string
@@ -14,43 +14,95 @@ interface FieldTypescriptGenerationOptions extends CollectionTypescriptGeneratio
 
 export const DEFAULT_FIELD_TYPE_MAP = {
     string: 'string',
+    text: 'string',
+    json: 'any',
+    datetime: 'Date',
+    timestamp: 'number',
+    boolean: 'boolean',
+    float: 'number',
     int: 'number',
-    bool: 'boolean'
 }
 
 export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : CommonTypescriptGenerationOptions & {
     collections : string[]
 }) : string {
     return options.collections.map(collectionName => {
-        return generateTypescriptInterface(storageRegistry.collections[collectionName], options)
-    }).join('\n') + '\n'
+        return generateTypescriptInterface(storageRegistry.collections[collectionName] as CollectionDefinition & { name : string }, options)
+    }).join('\n\n') + '\n'
 }
 
-export function generateTypescriptInterface(collectionDefinition : CollectionDefinition, options : CommonTypescriptGenerationOptions) : string {
-    const fieldPairs = sortFieldPairs(Object.entries(collectionDefinition.fields), { collectionDefinition })
-    const body = fieldPairs.map(
-        ([fieldName, fieldDefinition]) => generateTypescriptField(fieldDefinition, { ...options, collectionName: collectionDefinition.name, fieldName })
-    ).join('\n')
-    return `export interface ${upperFirst(collectionDefinition.name)} {\n${indent(body)}\n}`
+export function generateTypescriptInterface(collectionDefinition : CollectionDefinition & { name : string }, options : CommonTypescriptGenerationOptions) : string {
+    const pkLine = generateTypescriptOptionalPk(collectionDefinition, options)
+    
+    const fieldPairs = Object.entries(collectionDefinition.fields)
+    const fieldLines = fieldPairs.map(
+        ([fieldName, fieldDefinition]) =>
+            generateTypescriptField(fieldDefinition, { ...options, collectionDefinition, fieldName })
+    ).filter(line => !!line)
+    const fields = `{\n${indent(fieldLines.join('\n'))}\n}`
+
+    const relationshipLines = (collectionDefinition.relationships || []).map(
+        relationship => generateTypescriptRelationship(relationship, { ...options, collectionDefinition })
+    )
+    const relationships = relationshipLines.length ? [`{\n${indent(relationshipLines.join('\n'))}\n}`] : []
+    const body = [pkLine, fields, ...relationships].join(' &\n')
+    const interfaceParameters = generateTypescriptInterfaceParameters(collectionDefinition, options)
+    const firstLine = `export type ${upperFirst(collectionDefinition.name)}${interfaceParameters} =`
+    return `${firstLine}\n${indent(body)}`
 }
 
-function sortFieldPairs(fields : Array<[string, CollectionField]>, options : { collectionDefinition : CollectionDefinition }) : Array<[string, CollectionField]> {
-    const sorted = [...fields]
-    const pkIndex = options.collectionDefinition.pkIndex
+export function generateTypescriptOptionalPk(collectionDefinition : CollectionDefinition & { name : string }, options : CommonTypescriptGenerationOptions) : string {
+    const pkIndex = collectionDefinition.pkIndex
     if (typeof pkIndex !== 'string') {
-        throw new Error(`Unsupported pkIndex on collection '${options.collectionDefinition.name}'`)
+        throw new Error(`Unsupported pkIndex found in collection ${collectionDefinition}`)
     }
-    const fieldIndex = fields.findIndex(pair => pair[0] === pkIndex)
-    const fieldPair = fields[fieldIndex]
-    sorted.splice(fieldIndex, 1)
-    sorted.unshift(fieldPair)
-    return sorted
+    const pkType = DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
+    
+    return `( WithPk extends true ? { ${pkIndex} : ${pkType} } : {} )`
+}
+
+export function generateTypescriptInterfaceParameters(collectionDefinition : CollectionDefinition, options : CommonTypescriptGenerationOptions) : string {    
+    if (!collectionDefinition.relationships || !collectionDefinition.relationships.length) {
+        return '<WithPk extends boolean = true>'
+    }
+
+    const relationshipFields = []
+    for (const relationship of collectionDefinition.relationships) {
+        if (isChildOfRelationship(relationship)) {
+            relationshipFields.push(`'${relationship.alias}'`)
+        } else {
+            throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
+        }
+    }
+
+    return `<WithPk extends boolean = true, Relationships extends ${relationshipFields.join(' | ')} | null = null>`
 }
 
 function generateTypescriptField(fieldDefinition : CollectionField, options : CollectionTypescriptGenerationOptions & {
     fieldName : string
-}) : string {
-    return `${options.fieldName} : ${getTypescriptFieldType(fieldDefinition, options)}`
+}) : string | null {
+    if (fieldDefinition.type === 'foreign-key') {
+        return null
+    }
+
+    const pkIndex = options.collectionDefinition.pkIndex
+    if (typeof pkIndex === 'string' && options.fieldName === pkIndex) {
+        return null
+    }
+    
+    const optional = fieldDefinition.optional ? '?' : ''
+    return `${options.fieldName}${optional} : ${getTypescriptFieldType(fieldDefinition, options)}`
+}
+
+function generateTypescriptRelationship(relationship : Relationship, options : CollectionTypescriptGenerationOptions) : string {
+    if (isChildOfRelationship(relationship)) {
+        const condition = `'${relationship.alias}' extends Relationships`
+        const targetCollectionIdentifier = upperFirst((relationship as { targetCollection : string }).targetCollection)
+        const autoPkType = DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
+        return `${relationship.alias} : ${condition} ? ${targetCollectionIdentifier} : ${autoPkType}`
+    } else {
+        throw new Error(`Unsupported relationship type detected in collection ${options.collectionDefinition.name}`)
+    }
 }
 
 function getTypescriptFieldType(fieldDefinition : CollectionField, options : FieldTypescriptGenerationOptions) : string {
@@ -64,7 +116,7 @@ function getTypescriptFieldType(fieldDefinition : CollectionField, options : Fie
     const typescriptFieldType = fieldTypeMap[storexFieldType]
     if (!typescriptFieldType) {
         throw new Error(
-            `Could not translate type '${storexFieldType}' of field '${options.collectionName}.${options.fieldName}' to TypeScript type.` +
+            `Could not translate type '${storexFieldType}' of field '${options.collectionDefinition.name}.${options.fieldName}' to TypeScript type. ` +
             `Please use the 'fieldTypeMap' option for custom fields`
         )
     }

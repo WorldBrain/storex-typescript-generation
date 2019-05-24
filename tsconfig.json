@@ -5,6 +5,7 @@
         "module": "commonjs",
         "moduleResolution": "node",
         "noImplicitAny": true,
+        "strictNullChecks": true,
         "removeComments": true,
         "lib": [
             "es2017",
