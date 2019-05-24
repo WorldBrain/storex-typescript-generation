@@ -35,17 +35,24 @@ export function generateTypescriptInterface(collectionDefinition : CollectionDef
     const pkLine = generateTypescriptOptionalPk(collectionDefinition, options)
     
     const fieldPairs = Object.entries(collectionDefinition.fields)
-    const fieldLines = fieldPairs.map(
+    const fields = inIndentedBlock(fieldPairs.map(
         ([fieldName, fieldDefinition]) =>
             generateTypescriptField(fieldDefinition, { ...options, collectionDefinition, fieldName })
-    ).filter(line => !!line)
-    const fields = `{\n${indent(fieldLines.join('\n'))}\n}`
+    ).filter(line => !!line) as string[])
 
-    const relationshipLines = (collectionDefinition.relationships || []).map(
+    const relationships = inIndentedBlock((collectionDefinition.relationships || []).map(
         relationship => generateTypescriptRelationship(relationship, { ...options, collectionDefinition })
+    ))
+    const reverseRelationships = Object.values(collectionDefinition.reverseRelationshipsByAlias || {}).map(
+        reverseRelationship => generateTypescriptReverseRelationship(reverseRelationship, { ...options, collectionDefinition })
     )
-    const relationships = relationshipLines.length ? [`{\n${indent(relationshipLines.join('\n'))}\n}`] : []
-    const body = [pkLine, fields, ...relationships].join(' &\n')
+    
+    const body = [
+        pkLine,
+        ...(fields ? [fields] : []),
+        ...(relationships ? [relationships] : []),
+        ...reverseRelationships,
+    ].join(' &\n')
     const interfaceParameters = generateTypescriptInterfaceParameters(collectionDefinition, options)
     const firstLine = `export type ${upperFirst(collectionDefinition.name)}${interfaceParameters} =`
     return `${firstLine}\n${indent(body)}`
@@ -62,20 +69,40 @@ export function generateTypescriptOptionalPk(collectionDefinition : CollectionDe
 }
 
 export function generateTypescriptInterfaceParameters(collectionDefinition : CollectionDefinition, options : CommonTypescriptGenerationOptions) : string {    
-    if (!collectionDefinition.relationships || !collectionDefinition.relationships.length) {
+    if (
+        !(collectionDefinition.relationships && collectionDefinition.relationships.length) &&
+        !(collectionDefinition.reverseRelationshipsByAlias && Object.keys(collectionDefinition.reverseRelationshipsByAlias).length)
+    ) {
         return '<WithPk extends boolean = true>'
     }
 
     const relationshipFields = []
-    for (const relationship of collectionDefinition.relationships) {
+    for (const relationship of (collectionDefinition.relationships || [])) {
         if (isChildOfRelationship(relationship)) {
             relationshipFields.push(`'${relationship.alias}'`)
         } else {
             throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
         }
     }
+    relationshipFields.push('null')
 
-    return `<WithPk extends boolean = true, Relationships extends ${relationshipFields.join(' | ')} | null = null>`
+    const reverseRelationshipFields = []
+    for (const reverseRelationship of Object.values(collectionDefinition.reverseRelationshipsByAlias || {})) {
+        if (isChildOfRelationship(reverseRelationship)) {
+            reverseRelationshipFields.push(`'${reverseRelationship.reverseAlias}'`)
+        } else {
+            throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
+        }
+    }
+    reverseRelationshipFields.push('null')
+
+    return `<` +
+        [
+            `WithPk extends boolean = true`,
+            `Relationships extends ${relationshipFields.join(' | ')} = null`,
+            ...(reverseRelationshipFields.length > 1 ? [`ReverseRelationships extends ${reverseRelationshipFields.join(' | ')} = null`] : []),
+        ].join(', ')
+    + `>`
 }
 
 function generateTypescriptField(fieldDefinition : CollectionField, options : CollectionTypescriptGenerationOptions & {
@@ -105,6 +132,16 @@ function generateTypescriptRelationship(relationship : Relationship, options : C
     }
 }
 
+function generateTypescriptReverseRelationship(reverseRelationship : Relationship, options : CollectionTypescriptGenerationOptions) : string {
+    if (isChildOfRelationship(reverseRelationship)) {
+        const alias = reverseRelationship.reverseAlias 
+        const sourceCollectionIdentifier = upperFirst((reverseRelationship as { sourceCollection : string }).sourceCollection)
+        return `( '${alias}' extends ReverseRelationships ? { ${alias} : Bar | null } : {} )`
+    } else {
+        throw new Error(`Unsupported relationship type detected in collection ${options.collectionDefinition.name}`)
+    }
+}
+
 function getTypescriptFieldType(fieldDefinition : CollectionField, options : FieldTypescriptGenerationOptions) : string {
     const fieldTypeMap = options.fieldTypeMap || DEFAULT_FIELD_TYPE_MAP
     
@@ -126,4 +163,12 @@ function getTypescriptFieldType(fieldDefinition : CollectionField, options : Fie
 
 function indent(s : string) {
     return s.split('\n').map(l => '    ' + l).join('\n')
+}
+
+function inIndentedBlock(bodyLines : string[]) : string | null {
+    if (!bodyLines.length) {
+        return null
+    }
+
+    return `{\n${indent(bodyLines.join('\n'))}\n}`
 }
