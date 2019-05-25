@@ -1,7 +1,7 @@
 const expect = require('expect')
 const stripIndent = require('strip-indent')
 import { StorageRegistry, CollectionDefinitionMap } from '@worldbrain/storex'
-import { generateTypescriptInterfaces } from '.';
+import { generateTypescriptInterfaces, ImportGenerator } from '.';
 
 function normalizeWithSpace(s : string) : string {
     return s
@@ -17,13 +17,18 @@ function expectIndentedStringsEqual(actual : string, expected : string) {
 }
 
 describe('TypeScript storage types generation', () => {
-    async function runTest(options : { collections : CollectionDefinitionMap, expected : string, onlyCollections? : string[] }) {
+    async function runTest(options : {
+        collections : CollectionDefinitionMap, expected : string,
+        generateImport? : ImportGenerator,
+        onlyCollections? : string[]
+    }) {
         const storageRegistry = new StorageRegistry()
         storageRegistry.registerCollections(options.collections)
         await storageRegistry.finishInitialization()
         const interfacesSource = generateTypescriptInterfaces(storageRegistry, {
             collections: options.onlyCollections || Object.keys(options.collections),
-            autoPkType: 'int'
+            autoPkType: 'int',
+            generateImport: options.generateImport,
         })
         expectIndentedStringsEqual('\n' + interfacesSource, options.expected)
     }
@@ -282,6 +287,44 @@ describe('TypeScript storage types generation', () => {
                 {
                     foo : 'foo' extends Relationships ? Foo : number
                     bar : 'bar' extends Relationships ? Bar : number
+                }
+            `
+        })
+    })
+
+    it('should generate imports for childOf relationship fields to collections from other files', async () => {
+        await runTest({
+            generateImport: (args : { collectionName : string }) => {
+                return { path: `./${args.collectionName}` }
+            },
+            onlyCollections: ['bar'],
+            collections: {
+                fooSomething: {
+                    version: new Date(),
+                    fields: {
+                        spam: { type: 'string' },
+                    },
+                },
+                bar: {
+                    version: new Date(),
+                    fields: {
+                        eggs: { type: 'string' },
+                    },
+                    relationships: [
+                        { childOf: 'fooSomething' }
+                    ]
+                },
+            },
+            expected: `
+            import { FooSomething } from './fooSomething'
+
+            export type Bar<WithPk extends boolean = true, Relationships extends 'fooSomething' | null = null> =
+                ( WithPk extends true ? { id : number } : {} ) &
+                {
+                    eggs : string
+                } &
+                {
+                    fooSomething : 'fooSomething' extends Relationships ? FooSomething : number
                 }
             `
         })

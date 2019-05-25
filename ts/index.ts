@@ -4,12 +4,22 @@ import { upperFirst } from "./utils";
 interface CommonTypescriptGenerationOptions {
     autoPkType : 'string' | 'int'
     fieldTypeMap? : {[storexFieldType : string] : string}
+    generateImport? : ImportGenerator
+    context : GenerationContext
 }
 interface CollectionTypescriptGenerationOptions extends CommonTypescriptGenerationOptions {
     collectionDefinition : CollectionDefinition
 }
 interface FieldTypescriptGenerationOptions extends CollectionTypescriptGenerationOptions {
     fieldName : string
+}
+interface GenerationContext {
+    referencedImports : Set<string>
+}
+
+export type ImportGenerator = (options : ImportGeneratorOptions) => { path : string }
+export interface ImportGeneratorOptions {
+    collectionName : string
 }
 
 export const DEFAULT_FIELD_TYPE_MAP = {
@@ -23,15 +33,34 @@ export const DEFAULT_FIELD_TYPE_MAP = {
     int: 'number',
 }
 
-export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : CommonTypescriptGenerationOptions & {
+export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : {
+    autoPkType : 'string' | 'int'
+    fieldTypeMap? : {[storexFieldType : string] : string}
     collections : string[]
+    generateImport? : ImportGenerator
 }) : string {
-    return options.collections.map(collectionName => {
-        return generateTypescriptInterface(storageRegistry.collections[collectionName] as CollectionDefinition & { name : string }, options)
+    const context : GenerationContext = { referencedImports: new Set() }
+    // Not the nicest design, but the following step will modify this object to report stuff
+
+    const interfaces = options.collections.map(collectionName => {
+        return generateTypescriptInterface(
+            storageRegistry.collections[collectionName] as CollectionDefinition & { name : string },
+            { ...options, context }
+        )
     }).join('\n\n') + '\n'
+
+    const imports = generateTypescriptImports(context.referencedImports, { ...options, context })
+
+    return [
+        ...(imports ? [imports] : []),
+        interfaces,
+    ].join('\n\n')
 }
 
-export function generateTypescriptInterface(collectionDefinition : CollectionDefinition & { name : string }, options : CommonTypescriptGenerationOptions) : string {
+function generateTypescriptInterface(
+    collectionDefinition : CollectionDefinition & { name : string },
+    options : CommonTypescriptGenerationOptions
+) : string {
     const pkLine = generateTypescriptOptionalPk(collectionDefinition, options)
     
     const fieldPairs = Object.entries(collectionDefinition.fields)
@@ -58,7 +87,7 @@ export function generateTypescriptInterface(collectionDefinition : CollectionDef
     return `${firstLine}\n${indent(body)}`
 }
 
-export function generateTypescriptOptionalPk(collectionDefinition : CollectionDefinition & { name : string }, options : CommonTypescriptGenerationOptions) : string {
+function generateTypescriptOptionalPk(collectionDefinition : CollectionDefinition & { name : string }, options : CommonTypescriptGenerationOptions) : string {
     const pkIndex = collectionDefinition.pkIndex
     if (typeof pkIndex !== 'string') {
         throw new Error(`Unsupported pkIndex found in collection ${collectionDefinition}`)
@@ -68,7 +97,7 @@ export function generateTypescriptOptionalPk(collectionDefinition : CollectionDe
     return `( WithPk extends true ? { ${pkIndex} : ${pkType} } : {} )`
 }
 
-export function generateTypescriptInterfaceParameters(collectionDefinition : CollectionDefinition, options : CommonTypescriptGenerationOptions) : string {    
+function generateTypescriptInterfaceParameters(collectionDefinition : CollectionDefinition, options : CommonTypescriptGenerationOptions) : string {    
     if (
         !(collectionDefinition.relationships && collectionDefinition.relationships.length) &&
         !(collectionDefinition.reverseRelationshipsByAlias && Object.keys(collectionDefinition.reverseRelationshipsByAlias).length)
@@ -79,6 +108,7 @@ export function generateTypescriptInterfaceParameters(collectionDefinition : Col
     const relationshipFields = []
     for (const relationship of (collectionDefinition.relationships || [])) {
         if (isChildOfRelationship(relationship)) {
+            options.context.referencedImports.add(relationship.targetCollection as string)
             relationshipFields.push(`'${relationship.alias}'`)
         } else {
             throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
@@ -89,6 +119,7 @@ export function generateTypescriptInterfaceParameters(collectionDefinition : Col
     const reverseRelationshipFields = []
     for (const reverseRelationship of Object.values(collectionDefinition.reverseRelationshipsByAlias || {})) {
         if (isChildOfRelationship(reverseRelationship)) {
+            options.context.referencedImports.add(reverseRelationship.sourceCollection as string)
             reverseRelationshipFields.push(`'${reverseRelationship.reverseAlias}'`)
         } else {
             throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
@@ -160,6 +191,17 @@ function getTypescriptFieldType(fieldDefinition : CollectionField, options : Fie
     }
 
     return typescriptFieldType
+}
+
+function generateTypescriptImports(collections : Set<string>, options : CommonTypescriptGenerationOptions) : string | null {
+    if (!collections.size || !options.generateImport) {
+        return null
+    }
+
+    const generateImport = options.generateImport
+    return [...collections.values()].map(collectionName => {
+        return `import { ${upperFirst(collectionName)} } from '${generateImport({ collectionName }).path}' `
+    }).join('\n')
 }
 
 function indent(s : string) {
