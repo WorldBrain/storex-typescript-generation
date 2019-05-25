@@ -214,11 +214,12 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true> =
+            export type Foo<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bars' | null = null> =
                 ( WithPk extends true ? { id : number } : {} ) &
                 {
                     spam : string
-                }
+                } &
+                ( 'bars' extends ReverseRelationships ? { bars : Bar[] } : {} )
 
             export type Bar<WithPk extends boolean = true, Relationships extends 'foo' | null = null> =
                 ( WithPk extends true ? { id : number } : {} ) &
@@ -259,17 +260,19 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true> =
+            export type Foo<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bla' | null = null> =
                 ( WithPk extends true ? { id : number } : {} ) &
                 {
                     spam : string
-                }
+                } &
+                ( 'bla' extends ReverseRelationships ? { bla : Bla | null } : {} )
 
-            export type Bar<WithPk extends boolean = true> =
+            export type Bar<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bla' | null = null> =
                 ( WithPk extends true ? { id : number } : {} ) &
                 {
                     eggs : string
-                }
+                } &
+                ( 'bla' extends ReverseRelationships ? { bla : Bla | null } : {} )
 
             export type Bla<WithPk extends boolean = true, Relationships extends 'foo' | 'bar' | null = null> =
                 ( WithPk extends true ? { id : number } : {} ) &

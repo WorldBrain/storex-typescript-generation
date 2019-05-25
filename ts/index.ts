@@ -136,7 +136,8 @@ function generateTypescriptReverseRelationship(reverseRelationship : Relationshi
     if (isChildOfRelationship(reverseRelationship)) {
         const alias = reverseRelationship.reverseAlias 
         const sourceCollectionIdentifier = upperFirst((reverseRelationship as { sourceCollection : string }).sourceCollection)
-        return `( '${alias}' extends ReverseRelationships ? { ${alias} : Bar | null } : {} )`
+        const suffix = reverseRelationship.single ? ' | null' : '[]'
+        return `( '${alias}' extends ReverseRelationships ? { ${alias} : ${sourceCollectionIdentifier}${suffix} } : {} )`
     } else {
         throw new Error(`Unsupported relationship type detected in collection ${options.collectionDefinition.name}`)
     }
