@@ -1,9 +1,10 @@
-import { StorageRegistry, CollectionDefinition, CollectionField, Relationship, isChildOfRelationship } from "@worldbrain/storex";
+import { StorageRegistry, CollectionDefinition, CollectionField, Relationship, isChildOfRelationship, isConnectsRelationship } from "@worldbrain/storex";
 import { upperFirst } from "./utils";
 
 interface CommonTypescriptGenerationOptions {
     autoPkType : 'string' | 'int'
     fieldTypeMap? : {[storexFieldType : string] : string}
+    collections : string[]
     generateImport? : ImportGenerator
     context : GenerationContext
 }
@@ -71,16 +72,16 @@ function generateTypescriptInterface(
 
     const relationships = inIndentedBlock((collectionDefinition.relationships || []).map(
         relationship => generateTypescriptRelationship(relationship, { ...options, collectionDefinition })
-    ))
+    ).filter(line => !!line) as string[])
     const reverseRelationships = Object.values(collectionDefinition.reverseRelationshipsByAlias || {}).map(
         reverseRelationship => generateTypescriptReverseRelationship(reverseRelationship, { ...options, collectionDefinition })
-    )
+    ).filter(line => !!line) as string[]
     
     const body = [
         pkLine,
         ...(fields ? [fields] : []),
         ...(relationships ? [relationships] : []),
-        ...reverseRelationships,
+        ...(reverseRelationships.length ? reverseRelationships : []),
     ].join(' &\n')
     const interfaceParameters = generateTypescriptInterfaceParameters(collectionDefinition, options)
     const firstLine = `export type ${upperFirst(collectionDefinition.name)}${interfaceParameters} =`
@@ -110,6 +111,8 @@ function generateTypescriptInterfaceParameters(collectionDefinition : Collection
         if (isChildOfRelationship(relationship)) {
             options.context.referencedImports.add(relationship.targetCollection as string)
             relationshipFields.push(`'${relationship.alias}'`)
+        } else if (isConnectsRelationship(relationship)) {
+            console.warn(`Warning: 'connects' relationships are not supported yet, skipping one in collection ${collectionDefinition.name}`)
         } else {
             throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
         }
@@ -121,8 +124,13 @@ function generateTypescriptInterfaceParameters(collectionDefinition : Collection
         if (isChildOfRelationship(reverseRelationship)) {
             options.context.referencedImports.add(reverseRelationship.sourceCollection as string)
             reverseRelationshipFields.push(`'${reverseRelationship.reverseAlias}'`)
+        } else if (isConnectsRelationship(reverseRelationship)) {
+            console.warn(
+                `Warning: 'connects' reverse relationships are not supported yet, skipping one in collection ${collectionDefinition.name} ` +
+                `(${reverseRelationship.connects[0]} <-> ${reverseRelationship.connects[1]})`
+            )
         } else {
-            throw new Error(`Unsupported relationship type detected in collection ${collectionDefinition.name}`)
+            throw new Error(`Unsupported reverse relationship type detected in collection ${collectionDefinition.name} `)
         }
     }
     reverseRelationshipFields.push('null')
@@ -152,25 +160,29 @@ function generateTypescriptField(fieldDefinition : CollectionField, options : Co
     return `${options.fieldName}${optional} : ${getTypescriptFieldType(fieldDefinition, options)}`
 }
 
-function generateTypescriptRelationship(relationship : Relationship, options : CollectionTypescriptGenerationOptions) : string {
+function generateTypescriptRelationship(relationship : Relationship, options : CollectionTypescriptGenerationOptions) : string | null {
     if (isChildOfRelationship(relationship)) {
         const condition = `'${relationship.alias}' extends Relationships`
         const targetCollectionIdentifier = upperFirst((relationship as { targetCollection : string }).targetCollection)
         const autoPkType = DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
         return `${relationship.alias} : ${condition} ? ${targetCollectionIdentifier} : ${autoPkType}`
+    } else if (isConnectsRelationship(relationship)) {
+        return null // We've printed a warning above
     } else {
         throw new Error(`Unsupported relationship type detected in collection ${options.collectionDefinition.name}`)
     }
 }
 
-function generateTypescriptReverseRelationship(reverseRelationship : Relationship, options : CollectionTypescriptGenerationOptions) : string {
+function generateTypescriptReverseRelationship(reverseRelationship : Relationship, options : CollectionTypescriptGenerationOptions) : string | null {
     if (isChildOfRelationship(reverseRelationship)) {
         const alias = reverseRelationship.reverseAlias 
         const sourceCollectionIdentifier = upperFirst((reverseRelationship as { sourceCollection : string }).sourceCollection)
         const suffix = reverseRelationship.single ? ' | null' : '[]'
         return `( '${alias}' extends ReverseRelationships ? { ${alias} : ${sourceCollectionIdentifier}${suffix} } : {} )`
-    } else {
-        throw new Error(`Unsupported relationship type detected in collection ${options.collectionDefinition.name}`)
+    } else if (isConnectsRelationship(reverseRelationship)) {
+        return null // We've printed a warning above
+     } else {
+        throw new Error(`Unsupported reverse relationship type detected in collection ${options.collectionDefinition.name}`)
     }
 }
 
@@ -200,8 +212,10 @@ function generateTypescriptImports(collections : Set<string>, options : CommonTy
 
     const generateImport = options.generateImport
     return [...collections.values()].map(collectionName => {
-        return `import { ${upperFirst(collectionName)} } from '${generateImport({ collectionName }).path}' `
-    }).join('\n')
+        return options.collections.indexOf(collectionName) === -1
+            ? `import { ${upperFirst(collectionName)} } from '${generateImport({ collectionName }).path}' `
+            : null
+    }).filter(line => !!line).join('\n')
 }
 
 function indent(s : string) {

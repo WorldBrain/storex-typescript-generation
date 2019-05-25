@@ -329,5 +329,47 @@ describe('TypeScript storage types generation', () => {
             `
         })
     })
+
+    it('should not generate imports for childOf relationship fields to collections the same file files', async () => {
+        await runTest({
+            generateImport: (args : { collectionName : string }) => {
+                return { path: `./${args.collectionName}` }
+            },
+            collections: {
+                fooSomething: {
+                    version: new Date(),
+                    fields: {
+                        spam: { type: 'string' },
+                    },
+                },
+                bar: {
+                    version: new Date(),
+                    fields: {
+                        eggs: { type: 'string' },
+                    },
+                    relationships: [
+                        { childOf: 'fooSomething' }
+                    ]
+                },
+            },
+            expected: `
+            export type FooSomething<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bars' | null = null> =
+                ( WithPk extends true ? { id : number } : {} ) &
+                {
+                    spam : string
+                } &
+                ( 'bars' extends ReverseRelationships ? { bars : Bar[] } : {} )
+
+            export type Bar<WithPk extends boolean = true, Relationships extends 'fooSomething' | null = null> =
+                ( WithPk extends true ? { id : number } : {} ) &
+                {
+                    eggs : string
+                } &
+                {
+                    fooSomething : 'fooSomething' extends Relationships ? FooSomething : number
+                }
+            `
+        })
+    })
 })
 
