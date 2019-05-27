@@ -2,7 +2,7 @@ import { StorageRegistry, CollectionDefinition, CollectionField, Relationship, i
 import { upperFirst } from "./utils";
 
 interface CommonTypescriptGenerationOptions {
-    autoPkType : 'string' | 'int'
+    autoPkType : 'string' | 'int' | 'generic'
     fieldTypeMap? : {[storexFieldType : string] : string}
     collections : string[]
     generateImport? : ImportGenerator
@@ -35,7 +35,7 @@ export const DEFAULT_FIELD_TYPE_MAP = {
 }
 
 export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : {
-    autoPkType : 'string' | 'int'
+    autoPkType : 'string' | 'int' | 'generic'
     fieldTypeMap? : {[storexFieldType : string] : string}
     collections : string[]
     generateImport? : ImportGenerator
@@ -93,7 +93,9 @@ function generateTypescriptOptionalPk(collectionDefinition : CollectionDefinitio
     if (typeof pkIndex !== 'string') {
         throw new Error(`Unsupported pkIndex found in collection ${collectionDefinition}`)
     }
-    const pkType = DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
+    const pkType = options.autoPkType !== 'generic'
+        ? DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
+        : 'number | string'
     
     return `( WithPk extends true ? { ${pkIndex} : ${pkType} } : {} )`
 }

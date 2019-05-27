@@ -20,14 +20,15 @@ describe('TypeScript storage types generation', () => {
     async function runTest(options : {
         collections : CollectionDefinitionMap, expected : string,
         generateImport? : ImportGenerator,
-        onlyCollections? : string[]
+        onlyCollections? : string[],
+        autoPkType? : 'string' | 'int' | 'generic'
     }) {
         const storageRegistry = new StorageRegistry()
         storageRegistry.registerCollections(options.collections)
         await storageRegistry.finishInitialization()
         const interfacesSource = generateTypescriptInterfaces(storageRegistry, {
             collections: options.onlyCollections || Object.keys(options.collections),
-            autoPkType: 'int',
+            autoPkType: options.autoPkType || 'int',
             generateImport: options.generateImport,
         })
         expectIndentedStringsEqual('\n' + interfacesSource, options.expected)
@@ -47,6 +48,28 @@ describe('TypeScript storage types generation', () => {
             expected: `
             export type Test<WithPk extends boolean = true> =
                 ( WithPk extends true ? { id : number } : {} ) &
+                {
+                    fieldString : string
+                }
+            `
+        })
+    })
+
+    it('should generate interfaces with generic PKs', async () => {
+        await runTest({
+            autoPkType: 'generic',
+            collections: {
+                test: {
+                    version: new Date(),
+                    fields: {
+                        id : { type: 'auto-pk' },
+                        fieldString: { type: 'string' },
+                    },
+                }
+            },
+            expected: `
+            export type Test<WithPk extends boolean = true> =
+                ( WithPk extends true ? { id : number | string } : {} ) &
                 {
                     fieldString : string
                 }
