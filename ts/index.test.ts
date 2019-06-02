@@ -1,7 +1,7 @@
 const expect = require('expect')
 const stripIndent = require('strip-indent')
 import { StorageRegistry, CollectionDefinitionMap } from '@worldbrain/storex'
-import { generateTypescriptInterfaces, ImportGenerator } from '.';
+import { generateTypescriptInterfaces, ImportGenerator, GenerateTypescriptInterfacesOptions } from '.';
 
 function normalizeWithSpace(s : string) : string {
     return s
@@ -19,17 +19,17 @@ function expectIndentedStringsEqual(actual : string, expected : string) {
 describe('TypeScript storage types generation', () => {
     async function runTest(options : {
         collections : CollectionDefinitionMap, expected : string,
-        generateImport? : ImportGenerator,
         onlyCollections? : string[],
-        autoPkType? : 'string' | 'int' | 'generic'
+        generationOptions? : Partial<GenerateTypescriptInterfacesOptions>
     }) {
+        const otherOptions = options.generationOptions || {}
         const storageRegistry = new StorageRegistry()
         storageRegistry.registerCollections(options.collections)
         await storageRegistry.finishInitialization()
         const interfacesSource = generateTypescriptInterfaces(storageRegistry, {
             collections: options.onlyCollections || Object.keys(options.collections),
-            autoPkType: options.autoPkType || 'int',
-            generateImport: options.generateImport,
+            autoPkType: otherOptions.autoPkType || 'int',
+            ...otherOptions,
         })
         expectIndentedStringsEqual('\n' + interfacesSource, options.expected)
     }
@@ -57,7 +57,9 @@ describe('TypeScript storage types generation', () => {
 
     it('should generate interfaces with generic PKs', async () => {
         await runTest({
-            autoPkType: 'generic',
+            generationOptions: {
+                autoPkType: 'generic',
+            },
             collections: {
                 test: {
                     version: new Date(),
@@ -138,6 +140,30 @@ describe('TypeScript storage types generation', () => {
                     fieldBoolean : boolean
                     fieldFloat : number
                     fieldInt : number
+                }
+            `
+        })
+    })
+
+    it('should be able to skip types', async () => {
+        await runTest({
+            generationOptions: {
+                skipTypes: ['media']
+            },
+            collections: {
+                test: {
+                    version: new Date(),
+                    fields: {
+                        fieldString: { type: 'string' },
+                        fieldText: { type: 'media' },
+                    },
+                }
+            },
+            expected: `
+            export type Test<WithPk extends boolean = true> =
+                ( WithPk extends true ? { id : number } : {} ) &
+                {
+                    fieldString : string
                 }
             `
         })
@@ -317,8 +343,10 @@ describe('TypeScript storage types generation', () => {
 
     it('should generate imports for childOf relationship fields to collections from other files', async () => {
         await runTest({
-            generateImport: (args : { collectionName : string }) => {
-                return { path: `./${args.collectionName}` }
+            generationOptions: {
+                generateImport: (args : { collectionName : string }) => {
+                    return { path: `./${args.collectionName}` }
+                },
             },
             onlyCollections: ['bar'],
             collections: {
@@ -355,8 +383,10 @@ describe('TypeScript storage types generation', () => {
 
     it('should not generate imports for childOf relationship fields to collections the same file files', async () => {
         await runTest({
-            generateImport: (args : { collectionName : string }) => {
-                return { path: `./${args.collectionName}` }
+            generationOptions: {
+                generateImport: (args : { collectionName : string }) => {
+                    return { path: `./${args.collectionName}` }
+                },
             },
             collections: {
                 fooSomething: {

@@ -1,11 +1,15 @@
 import { StorageRegistry, CollectionDefinition, CollectionField, Relationship, isChildOfRelationship, isConnectsRelationship } from "@worldbrain/storex";
 import { upperFirst } from "./utils";
 
-interface CommonTypescriptGenerationOptions {
+export interface GenerateTypescriptInterfacesOptions {
     autoPkType : 'string' | 'int' | 'generic'
     fieldTypeMap? : {[storexFieldType : string] : string}
     collections : string[]
     generateImport? : ImportGenerator
+    skipTypes? : string[]
+}
+
+interface CommonTypescriptGenerationOptions extends GenerateTypescriptInterfacesOptions {
     context : GenerationContext
 }
 interface CollectionTypescriptGenerationOptions extends CommonTypescriptGenerationOptions {
@@ -34,12 +38,7 @@ export const DEFAULT_FIELD_TYPE_MAP = {
     int: 'number',
 }
 
-export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : {
-    autoPkType : 'string' | 'int' | 'generic'
-    fieldTypeMap? : {[storexFieldType : string] : string}
-    collections : string[]
-    generateImport? : ImportGenerator
-}) : string {
+export function generateTypescriptInterfaces(storageRegistry : StorageRegistry, options : GenerateTypescriptInterfacesOptions) : string {
     const context : GenerationContext = { referencedImports: new Set() }
     // Not the nicest design, but the following step will modify this object to report stuff
 
@@ -150,6 +149,9 @@ function generateTypescriptField(fieldDefinition : CollectionField, options : Co
     fieldName : string
 }) : string | null {
     if (fieldDefinition.type === 'foreign-key') {
+        return null
+    }
+    if (options.skipTypes && options.skipTypes.includes(fieldDefinition.type)) {
         return null
     }
 
