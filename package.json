@@ -26,7 +26,7 @@
   "devDependencies": {
     "@types/mocha": "^2.2.44",
     "@types/node": "^10.12.11",
-    "@worldbrain/storex": "^0.3.6",
+    "@worldbrain/storex": "^0.4.1",
     "@worldbrain/storex-pattern-modules": "^0.3.0",
     "expect": "^23.5.0",
     "mocha": "^4.0.1",
@@ -35,7 +35,7 @@
     "typescript": "^3.0.1"
   },
   "peerDependencies": {
-    "@worldbrain/storex": "^0.3.6",
+    "@worldbrain/storex": "^0.4.1",
     "@worldbrain/storex-pattern-modules": "^0.3.0"
   }
 }

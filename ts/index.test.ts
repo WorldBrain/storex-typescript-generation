@@ -3,7 +3,7 @@ const stripIndent = require('strip-indent')
 import { StorageRegistry, CollectionDefinitionMap } from '@worldbrain/storex'
 import { generateTypescriptInterfaces, ImportGenerator, GenerateTypescriptInterfacesOptions } from '.';
 
-function normalizeWithSpace(s : string) : string {
+function normalizeWithSpace(s: string): string {
     return s
         .replace(/^\s+$/mg, '') // Collapse empty lines
         .split('\n')
@@ -11,16 +11,16 @@ function normalizeWithSpace(s : string) : string {
         .join('\n')
 }
 
-function expectIndentedStringsEqual(actual : string, expected : string) {
+function expectIndentedStringsEqual(actual: string, expected: string) {
     expect(normalizeWithSpace(stripIndent(actual)))
-            .toEqual(normalizeWithSpace(stripIndent(expected)))
+        .toEqual(normalizeWithSpace(stripIndent(expected)))
 }
 
 describe('TypeScript storage types generation', () => {
-    async function runTest(options : {
-        collections : CollectionDefinitionMap, expected : string,
-        onlyCollections? : string[],
-        generationOptions? : Partial<GenerateTypescriptInterfacesOptions>
+    async function runTest(options: {
+        collections: CollectionDefinitionMap, expected: string,
+        onlyCollections?: string[],
+        generationOptions?: Partial<GenerateTypescriptInterfacesOptions>
     }) {
         const otherOptions = options.generationOptions || {}
         const storageRegistry = new StorageRegistry()
@@ -40,14 +40,14 @@ describe('TypeScript storage types generation', () => {
                 test: {
                     version: new Date(),
                     fields: {
-                        id : { type: 'auto-pk' },
+                        id: { type: 'auto-pk' },
                         fieldString: { type: 'string' },
                     },
                 }
             },
             expected: `
-            export type Test<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Test =
+                { id : number } &
                 {
                     fieldString : string
                 }
@@ -64,14 +64,14 @@ describe('TypeScript storage types generation', () => {
                 test: {
                     version: new Date(),
                     fields: {
-                        id : { type: 'auto-pk' },
+                        id: { type: 'auto-pk' },
                         fieldString: { type: 'string' },
                     },
                 }
             },
             expected: `
-            export type Test<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number | string } : {} ) &
+            export type Test =
+                { id : number | string } &
                 {
                     fieldString : string
                 }
@@ -96,14 +96,14 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Foo =
+                { id : number } &
                 {
                     spam : string
                 }
 
-            export type Bar<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
                 }
@@ -129,8 +129,8 @@ describe('TypeScript storage types generation', () => {
                 }
             },
             expected: `
-            export type Test<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Test =
+                { id : number } &
                 {
                     fieldString : string
                     fieldText : string
@@ -160,8 +160,8 @@ describe('TypeScript storage types generation', () => {
                 }
             },
             expected: `
-            export type Test<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Test =
+                { id : number } &
                 {
                     fieldString : string
                 }
@@ -180,8 +180,8 @@ describe('TypeScript storage types generation', () => {
                 }
             },
             expected: `
-            export type Test<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Test =
+                { id : number } &
                 {
                     fieldString? : string
                 }
@@ -200,8 +200,8 @@ describe('TypeScript storage types generation', () => {
                 }
             },
             expected: `
-            export type UserProfile<WithPk extends boolean = true> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type UserProfile =
+                { id : number } &
                 {
                     fieldString : string
                 }
@@ -229,20 +229,16 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bar' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Foo =
+                { id : number } &
                 {
                     spam : string
-                } &
-                ( 'bar' extends ReverseRelationships ? { bar : Bar | null } : {} )
+                }
 
-            export type Bar<WithPk extends boolean = true, Relationships extends 'foo' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
-                } &
-                {
-                    foo : 'foo' extends Relationships ? Foo : number
                 }
             `
         })
@@ -268,20 +264,16 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bars' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Foo =
+                { id : number } &
                 {
                     spam : string
-                } &
-                ( 'bars' extends ReverseRelationships ? { bars : Bar[] } : {} )
+                }
 
-            export type Bar<WithPk extends boolean = true, Relationships extends 'foo' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
-                } &
-                {
-                    foo : 'foo' extends Relationships ? Foo : number
                 }
             `
         })
@@ -314,28 +306,22 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type Foo<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bla' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Foo =
+                { id : number } &
                 {
                     spam : string
-                } &
-                ( 'bla' extends ReverseRelationships ? { bla : Bla | null } : {} )
+                }
 
-            export type Bar<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bla' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
-                } &
-                ( 'bla' extends ReverseRelationships ? { bla : Bla | null } : {} )
+                }
 
-            export type Bla<WithPk extends boolean = true, Relationships extends 'foo' | 'bar' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bla =
+                { id : number } &
                 {
                     sausage : string
-                } &
-                {
-                    foo : 'foo' extends Relationships ? Foo : number
-                    bar : 'bar' extends Relationships ? Bar : number
                 }
             `
         })
@@ -344,7 +330,7 @@ describe('TypeScript storage types generation', () => {
     it('should generate imports for childOf relationship fields to collections from other files', async () => {
         await runTest({
             generationOptions: {
-                generateImport: (args : { collectionName : string }) => {
+                generateImport: (args: { collectionName: string }) => {
                     return { path: `./${args.collectionName}` }
                 },
             },
@@ -367,15 +353,10 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            import { FooSomething } from './fooSomething'
-
-            export type Bar<WithPk extends boolean = true, Relationships extends 'fooSomething' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
-                } &
-                {
-                    fooSomething : 'fooSomething' extends Relationships ? FooSomething : number
                 }
             `
         })
@@ -384,7 +365,7 @@ describe('TypeScript storage types generation', () => {
     it('should not generate imports for childOf relationship fields to collections the same file files', async () => {
         await runTest({
             generationOptions: {
-                generateImport: (args : { collectionName : string }) => {
+                generateImport: (args: { collectionName: string }) => {
                     return { path: `./${args.collectionName}` }
                 },
             },
@@ -406,20 +387,16 @@ describe('TypeScript storage types generation', () => {
                 },
             },
             expected: `
-            export type FooSomething<WithPk extends boolean = true, Relationships extends null = null, ReverseRelationships extends 'bars' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type FooSomething =
+                { id : number } &
                 {
                     spam : string
-                } &
-                ( 'bars' extends ReverseRelationships ? { bars : Bar[] } : {} )
+                }
 
-            export type Bar<WithPk extends boolean = true, Relationships extends 'fooSomething' | null = null> =
-                ( WithPk extends true ? { id : number } : {} ) &
+            export type Bar =
+                { id : number } &
                 {
                     eggs : string
-                } &
-                {
-                    fooSomething : 'fooSomething' extends Relationships ? FooSomething : number
                 }
             `
         })
