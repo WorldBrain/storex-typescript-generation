@@ -70,23 +70,23 @@ function generateTypescriptInterface(
     ).filter(line => !!line) as string[])
 
     const body = [
-        pkLine,
+        ...(pkLine ? [pkLine] : []),
         ...(fields ? [fields] : []),
     ].join(' &\n')
     const firstLine = `export type ${upperFirst(collectionDefinition.name)} =`
     return `${firstLine}\n${indent(body)}`
 }
 
-function generateTypescriptOptionalPk(collectionDefinition: CollectionDefinition & { name: string }, options: CommonTypescriptGenerationOptions): string {
+function generateTypescriptOptionalPk(collectionDefinition: CollectionDefinition & { name: string }, options: CommonTypescriptGenerationOptions): string | null {
     const pkIndex = collectionDefinition.pkIndex
     if (typeof pkIndex !== 'string') {
-        throw new Error(`Unsupported pkIndex found in collection ${collectionDefinition}`)
+        return null
     }
     const pkType = options.autoPkType !== 'generic'
         ? DEFAULT_FIELD_TYPE_MAP[options.autoPkType]
         : 'number | string'
 
-    return `{ ${pkIndex} : ${pkType} }`
+    return `{ ${pkIndex}: ${pkType} }`
 }
 
 function generateTypescriptField(fieldDefinition: CollectionField, options: CollectionTypescriptGenerationOptions & {
@@ -105,7 +105,7 @@ function generateTypescriptField(fieldDefinition: CollectionField, options: Coll
     }
 
     const optional = fieldDefinition.optional ? '?' : ''
-    return `${options.fieldName}${optional} : ${getTypescriptFieldType(fieldDefinition, options)}`
+    return `${options.fieldName}${optional}: ${getTypescriptFieldType(fieldDefinition, options)}`
 }
 
 function getTypescriptFieldType(fieldDefinition: CollectionField, options: FieldTypescriptGenerationOptions): string {

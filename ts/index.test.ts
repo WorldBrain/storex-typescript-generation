@@ -47,9 +47,9 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id : number } &
+                { id: number } &
                 {
-                    fieldString : string
+                    fieldString: string
                 }
             `
         })
@@ -71,9 +71,9 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id : number | string } &
+                { id: number | string } &
                 {
-                    fieldString : string
+                    fieldString: string
                 }
             `
         })
@@ -97,15 +97,15 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id : number } &
+                { id: number } &
                 {
-                    spam : string
+                    spam: string
                 }
 
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
             `
         })
@@ -130,16 +130,16 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id : number } &
+                { id: number } &
                 {
-                    fieldString : string
-                    fieldText : string
-                    fieldJson : any
-                    fieldDatetime : Date
-                    fieldTimestamp : number
-                    fieldBoolean : boolean
-                    fieldFloat : number
-                    fieldInt : number
+                    fieldString: string
+                    fieldText: string
+                    fieldJson: any
+                    fieldDatetime: Date
+                    fieldTimestamp: number
+                    fieldBoolean: boolean
+                    fieldFloat: number
+                    fieldInt: number
                 }
             `
         })
@@ -161,9 +161,9 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id : number } &
+                { id: number } &
                 {
-                    fieldString : string
+                    fieldString: string
                 }
             `
         })
@@ -181,9 +181,9 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id : number } &
+                { id: number } &
                 {
-                    fieldString? : string
+                    fieldString?: string
                 }
             `
         })
@@ -201,15 +201,39 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type UserProfile =
-                { id : number } &
+                { id: number } &
                 {
-                    fieldString : string
+                    fieldString: string
                 }
             `
         })
     })
 
-    it('should generate singleChildOf relationship fields', async () => {
+    it('should generate interfaces compound indices', async () => {
+        await runTest({
+            collections: {
+                userProfile: {
+                    version: new Date(),
+                    fields: {
+                        firstName: { type: 'string' },
+                        lastName: { type: 'string' },
+                    },
+                    indices: [
+                        { field: ['firstName', 'lastName'], pk: true }
+                    ]
+                }
+            },
+            expected: `
+            export type UserProfile =
+                {
+                    firstName: string
+                    lastName: string
+                }
+            `
+        })
+    })
+
+    it('should handle singleChildOf relationship fields', async () => {
         await runTest({
             collections: {
                 foo: {
@@ -230,15 +254,15 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id : number } &
+                { id: number } &
                 {
-                    spam : string
+                    spam: string
                 }
 
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
             `
         })
@@ -265,15 +289,15 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id : number } &
+                { id: number } &
                 {
-                    spam : string
+                    spam: string
                 }
 
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
             `
         })
@@ -307,21 +331,21 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id : number } &
+                { id: number } &
                 {
-                    spam : string
+                    spam: string
                 }
 
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
 
             export type Bla =
-                { id : number } &
+                { id: number } &
                 {
-                    sausage : string
+                    sausage: string
                 }
             `
         })
@@ -354,9 +378,9 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
             `
         })
@@ -388,15 +412,15 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type FooSomething =
-                { id : number } &
+                { id: number } &
                 {
-                    spam : string
+                    spam: string
                 }
 
             export type Bar =
-                { id : number } &
+                { id: number } &
                 {
-                    eggs : string
+                    eggs: string
                 }
             `
         })
