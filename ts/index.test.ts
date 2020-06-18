@@ -47,7 +47,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id: number } &
                 {
                     fieldString: string
                 }
@@ -71,7 +70,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id: number | string } &
                 {
                     fieldString: string
                 }
@@ -97,13 +95,11 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id: number } &
                 {
                     spam: string
                 }
 
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }
@@ -130,7 +126,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id: number } &
                 {
                     fieldString: string
                     fieldText: string
@@ -161,7 +156,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id: number } &
                 {
                     fieldString: string
                 }
@@ -181,7 +175,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Test =
-                { id: number } &
                 {
                     fieldString?: string
                 }
@@ -201,7 +194,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type UserProfile =
-                { id: number } &
                 {
                     fieldString: string
                 }
@@ -254,13 +246,11 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id: number } &
                 {
                     spam: string
                 }
 
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }
@@ -289,13 +279,11 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id: number } &
                 {
                     spam: string
                 }
 
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }
@@ -331,19 +319,16 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Foo =
-                { id: number } &
                 {
                     spam: string
                 }
 
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }
 
             export type Bla =
-                { id: number } &
                 {
                     sausage: string
                 }
@@ -378,7 +363,6 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }
@@ -412,13 +396,11 @@ describe('TypeScript storage types generation', () => {
             },
             expected: `
             export type FooSomething =
-                { id: number } &
                 {
                     spam: string
                 }
 
             export type Bar =
-                { id: number } &
                 {
                     eggs: string
                 }

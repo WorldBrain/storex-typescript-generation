@@ -61,7 +61,8 @@ function generateTypescriptInterface(
     collectionDefinition: CollectionDefinition & { name: string },
     options: CommonTypescriptGenerationOptions
 ): string {
-    const pkLine = generateTypescriptOptionalPk(collectionDefinition, options)
+    const pkLine = null
+    // const pkLine = generateTypescriptOptionalPk(collectionDefinition, options)
 
     const fieldPairs = Object.entries(collectionDefinition.fields)
     const fields = inIndentedBlock(fieldPairs.map(
